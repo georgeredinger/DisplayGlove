@@ -15,18 +15,22 @@
  * BSD license, check license.txt for more information
  * All text above, and the splash screen must be included in any redistribution
  *********************************************************************/
+#define ADXL345_POWER A3
+#define OLED_RESET 13
+#define OLED_POWER 12
+#define XPOS 0
+#define YPOS 1
+#define DELTAY 2
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
-#define OLED_RESET 13
+#include <Adafruit_Sensor.h>
+#include <Adafruit_ADXL345_U.h>
+Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 Adafruit_SSD1306 display(OLED_RESET);
 
-#define NUMFLAKES 10
-#define XPOS 0
-#define YPOS 1
-#define DELTAY 2
+
 
 
 #define LOGO16_GLCD_HEIGHT 16 
@@ -37,10 +41,46 @@ Adafruit_SSD1306 display(OLED_RESET);
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
 #endif
 
+char buff[32];
+ 
+ 
+float AccelMinX = 0;
+float AccelMaxX = 0;
+float AccelMinY = 0;
+float AccelMaxY = 0;
+float AccelMinZ = 0;
+float AccelMaxZ = 0;
+
+
+void displaySensorDetails(void)
+{
+  sensor_t sensor;
+  accel.getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" m/s^2");
+  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" m/s^2");
+  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" m/s^2");  
+  Serial.println("------------------------------------");
+  Serial.println("");
+  delay(500);
+}
+
+
 void setup()   {                
-  Serial.begin(9600);
-  pinMode(12,OUTPUT);
-  digitalWrite(12,HIGH);
+  Serial.begin(115200);               //initial the Serial
+ pinMode(OLED_POWER,OUTPUT);
+  pinMode(ADXL345_POWER,OUTPUT);
+  digitalWrite(ADXL345_POWER,HIGH);
+if(!accel.begin())
+  {
+    /* There was a problem detecting the ADXL345 ... check your connections */
+    Serial.println("Ooops, no ADXL345 detected ... Check your wiring!");
+    while(1);
+  }
+  digitalWrite(OLED_POWER,HIGH);
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x32)
   // init done
@@ -52,26 +92,32 @@ void setup()   {
   display.println("Welcome");
   display.display();
   delay(2000);
+  /* Set the range to whatever is appropriate for your project */
+  accel.setRange(ADXL345_RANGE_16_G);
+  // displaySetRange(ADXL345_RANGE_8_G);
+  // displaySetRange(ADXL345_RANGE_4_G);
+  // displaySetRange(ADXL345_RANGE_2_G);
+  displaySensorDetails();
 }
 
 unsigned long count;
 int size=3;
 
 void loop() {
+  sensors_event_t event; 
+  accel.getEvent(&event);
+  
   display.clearDisplay();
-  display.setTextSize(size);
+  display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.println(count++);
+  display.print(event.acceleration.x);
+  display.setCursor(40,0);
+  display.print(event.acceleration.y);
+  display.setCursor(80,0);
+  display.println(event.acceleration.z);
   display.display();
-  
-  if(count % 100 == 0){
-    size=count % 3 + 1;
-    digitalWrite(12,LOW);
-    digitalWrite(12,HIGH);
-    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C addr 0x3C (for the 128x32)
-  } 
-  
+ // Serial.println(buff);    //send what has been received
 }
 
 
