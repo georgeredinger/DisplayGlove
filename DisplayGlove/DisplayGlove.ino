@@ -1,23 +1,8 @@
-/*********************************************************************
- * This is an example for our Monochrome OLEDs based on SSD1306 drivers
- * 
- * Pick one up today in the adafruit shop!
- * ------> http://www.adafruit.com/category/63_98
- * 
- * This example is for a 128x32 size display using I2C to communicate
- * 3 pins are required to interface (2 I2C and one reset)
- * 
- * Adafruit invests time and resources providing this open source code, 
- * please support Adafruit and open-source hardware by purchasing 
- * products from Adafruit!
- * 
- * Written by Limor Fried/Ladyada  for Adafruit Industries.  
- * BSD license, check license.txt for more information
- * All text above, and the splash screen must be included in any redistribution
- *********************************************************************/
+
 #define ADXL345_POWER A3
 #define OLED_RESET 13
 #define OLED_POWER 12
+#define VIBRATOR 3
 #define XPOS 0
 #define YPOS 1
 #define DELTAY 2
@@ -31,7 +16,7 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 Adafruit_SSD1306 display(OLED_RESET);
 
 
-
+extern int freeMemory();
 
 #define LOGO16_GLCD_HEIGHT 16 
 #define LOGO16_GLCD_WIDTH  16 
@@ -41,38 +26,17 @@ Adafruit_SSD1306 display(OLED_RESET);
 #error("Height incorrect, please fix Adafruit_SSD1306.h!");
 #endif
 
-char buff[32];
- 
- 
-float AccelMinX = 0;
-float AccelMaxX = 0;
-float AccelMinY = 0;
-float AccelMaxY = 0;
-float AccelMinZ = 0;
-float AccelMaxZ = 0;
+#define CAPTURE_SIZE 140
+static long capture[CAPTURE_SIZE];
 
-
-void displaySensorDetails(void)
-{
-  sensor_t sensor;
-  accel.getSensor(&sensor);
-  Serial.println("------------------------------------");
-  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" m/s^2");
-  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" m/s^2");
-  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" m/s^2");  
-  Serial.println("------------------------------------");
-  Serial.println("");
-  delay(500);
-}
 
 
 void setup()   {                
   Serial.begin(115200);               //initial the Serial
- pinMode(OLED_POWER,OUTPUT);
+  pinMode(OLED_POWER,OUTPUT);
   pinMode(ADXL345_POWER,OUTPUT);
+  pinMode(VIBRATOR,OUTPUT);
+  
   digitalWrite(ADXL345_POWER,HIGH);
 if(!accel.begin())
   {
@@ -86,23 +50,21 @@ if(!accel.begin())
   // init done
   
   display.clearDisplay();
-  display.setTextSize(3);
+  display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.println("Welcome");
+  display.println("Swingizer");
   display.display();
-  delay(2000);
+  delay(1000);
   /* Set the range to whatever is appropriate for your project */
   accel.setRange(ADXL345_RANGE_16_G);
   // displaySetRange(ADXL345_RANGE_8_G);
   // displaySetRange(ADXL345_RANGE_4_G);
   // displaySetRange(ADXL345_RANGE_2_G);
-  displaySensorDetails();
 }
 
-unsigned long count;
-int size=3;
 
+int index = 0;
 void loop() {
   sensors_event_t event; 
   accel.getEvent(&event);
@@ -116,8 +78,17 @@ void loop() {
   display.print(event.acceleration.y);
   display.setCursor(80,0);
   display.println(event.acceleration.z);
+  display.setCursor(0,20);
+  display.print(freeMemory());
   display.display();
  // Serial.println(buff);    //send what has been received
+ if(event.acceleration.z < -9.0) {
+     digitalWrite(VIBRATOR,HIGH);
+     delay(500);
+     digitalWrite(VIBRATOR,LOW);
+     capture[index % CAPTURE_SIZE] = event.acceleration.z;
+     index++;
+ }
 }
 
 
